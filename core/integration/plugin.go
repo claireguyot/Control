@@ -30,6 +30,7 @@ import (
 	"github.com/AliceO2Group/Control/common/logger"
 	"github.com/AliceO2Group/Control/common/utils"
 	"github.com/AliceO2Group/Control/core/integration/dcs"
+	"github.com/AliceO2Group/Control/core/integration/ddsched"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -84,17 +85,30 @@ func (p Plugins) ObjectStack(varStack map[string]string) (stack map[string]inter
 func PluginsInstance() Plugins {
 	once.Do(func() {
 		var endpoint string
-		if viper.IsSet("dcsServiceEndpoint") { //coconut
-			endpoint = viper.GetString("dcsServiceEndpoint")
-			instance = []Plugin{}
 
-			pluginList := viper.GetStringSlice("integrationPlugins")
-			if utils.StringSliceContains(pluginList, "dcs") {
+		instance = Plugins{}
+		pluginList := viper.GetStringSlice("integrationPlugins")
+
+		// Load DCS if enabled
+		if utils.StringSliceContains(pluginList, "dcs") {
+			if viper.IsSet("dcsServiceEndpoint") { //coconut
+				endpoint = viper.GetString("dcsServiceEndpoint")
 				instance = append(instance, dcs.NewPlugin(endpoint))
+			} else {
+				log.WithField("dcsServiceEndpoint", endpoint).
+					Error("bad DCS service endpoint")
+			}
+		}
+
+		// Load DDsched if enabled
+		if utils.StringSliceContains(pluginList, "ddsched") {
+			if viper.IsSet("ddSchedulerEndpoint") { //coconut
+				endpoint = viper.GetString("ddSchedulerEndpoint")
+				instance = append(instance, ddsched.NewPlugin(endpoint))
 			}
 		} else {
-			log.WithField("dcsServiceEndpoint", endpoint).Error("bad DCS service endpoint")
-			instance = Plugins{}
+			log.WithField("ddSchedulerEndpoint", endpoint).
+				Error("bad DD scheduler endpoint")
 		}
 	})
 	return instance
